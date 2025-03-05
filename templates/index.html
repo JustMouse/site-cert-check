@@ -1,90 +1,88 @@
-<!-- templates/index.html (исправленная версия) -->
+<!-- templates/index.html -->
 <!DOCTYPE html>
 <html>
 <head>
     <title>Certificate Monitor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     <style>
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
-        tr:nth-child(even) { background-color: #f2f2f2; }
-        .search-box { margin: 20px 0; }
+        th, td { padding: 8px; border: 1px solid #ddd; }
         .status-valid { color: green; }
         .status-error { color: red; }
-        .button-group { margin: 20px 0; }
-        .button-group button { margin-right: 10px; padding: 5px 10px; }
-        .active-sort { background-color: #4CAF50; color: white; }
-        .upload-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; background: #f9f9f9; }
+        .status-updating { background: #fff3cd; }
+        .progress { height: 5px; background: #4CAF50; transition: width 0.3s; }
     </style>
 </head>
 <body>
     <h1>Certificate Monitoring</h1>
     
-    <!-- Панель управления -->
-    <div class="button-group">
-        <!-- Кнопки сортировки -->
-        <a href="{{ url_for('index', sort='asc', hide_never=hide_never, query=query, date_filter=date_filter) }}" 
-           class="{% if sort_order == 'asc' %}active-sort{% endif %}">
-           Sort A-Z
-        </a>
-        <a href="{{ url_for('index', sort='desc', hide_never=hide_never, query=query, date_filter=date_filter) }}" 
-           class="{% if sort_order == 'desc' %}active-sort{% endif %}">
-           Sort Z-A
-        </a>
-        
-        <!-- Кнопка фильтрации -->
-        <a href="{{ url_for('index', hide_never=not hide_never, sort=sort_order, query=query, date_filter=date_filter) }}" 
-           class="{% if hide_never %}active-sort{% endif %}">
-           {% if hide_never %}Show All{% else %}Hide Never Checked{% endif %}
-        </a>
-    </div>
-
-    <!-- Форма поиска и фильтрации -->
-    <div class="search-box">
-        <form>
-            <input type="text" name="query" placeholder="Search domain..." value="{{ query }}">
-            <input type="date" name="date_filter" value="{{ date_filter }}">
-            <input type="hidden" name="hide_never" value="{{ hide_never }}">
-            <input type="hidden" name="sort" value="{{ sort_order }}">
-            <button type="submit">Search</button>
-        </form>
-    </div>
-
-    <!-- Секция загрузки файла -->
-    <div class="upload-section">
-        <h3>Upload DNS Dump</h3>
-        <form method="post" enctype="multipart/form-data">
-            <input type="file" name="file" required>
-            <button type="submit">Upload and Process</button>
-        </form>
-    </div>
-
-    <!-- Кнопка обновления всех сертификатов -->
-    <div class="button-group">
-        <form action="{{ url_for('update_all') }}" method="post">
-            <button type="submit">Update All Certificates</button>
-        </form>
-    </div>
-
-    <!-- Таблица результатов -->
+    <!-- Поиск и фильтры -->
+    <form>
+        <input type="text" name="query" placeholder="Search...">
+        <button type="submit">Search</button>
+    </form>
+    
+    <!-- Загрузка файла -->
+    <form method="post" enctype="multipart/form-data" style="margin: 20px 0;">
+        <input type="file" name="file">
+        <button type="submit">Upload DNS Dump</button>
+    </form>
+    
+    <!-- Кнопка обновления -->
+    <button onclick="startUpdate()">Update All Certificates</button>
+    <div class="progress" id="progress"></div>
+    
+    <!-- Таблица -->
     <table>
-        <tr>
-            <th>Domain</th>
-            <th>Expiry Date</th>
-            <th>Last Checked</th>
-            <th>Status</th>
-            <th>Action</th>
-        </tr>
-        {% for cert in certs %}
-        <tr>
-            <td>{{ cert.domain }}</td>
-            <td>{{ cert.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if cert.expiry_date else 'N/A' }}</td>
-            <td>{{ cert.last_checked.strftime('%Y-%m-%d %H:%M:%S') if cert.last_checked else 'Never' }}</td>
-            <td class="status-{{ cert.status.lower() }}">{{ cert.status }}</td>
-            <td>
-                <a href="{{ url_for('update_single', domain=cert.domain) }}">Update</a>
-            </td>
-        </tr>
-        {% endfor %}
+        <thead>
+            <tr>
+                <th>Domain</th>
+                <th>Expiry Date</th>
+                <th>Last Checked</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody id="certTable">
+            {% for cert in certs %}
+            <tr id="row-{{ cert.domain }}">
+                <td>{{ cert.domain }}</td>
+                <td>{{ cert.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if cert.expiry_date else 'N/A' }}</td>
+                <td>{{ cert.last_checked.strftime('%Y-%m-%d %H:%M:%S') if cert.last_checked else 'Never' }}</td>
+                <td class="status-{{ cert.status.lower() }}">{{ cert.status }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
     </table>
+
+    <script>
+        const socket = io();
+        let total = 0;
+        let processed = 0;
+        
+        socket.on('update', (data) => {
+            const row = document.getElementById(`row-${data.domain}`);
+            if (row) {
+                row.innerHTML = `
+                    <td>${data.domain}</td>
+                    <td>${data.expiry_date}</td>
+                    <td>${data.last_checked}</td>
+                    <td class="status-${data.status}">${data.status.toUpperCase()}</td>
+                `;
+            }
+            updateProgress(++processed);
+        });
+
+        function startUpdate() {
+            processed = 0;
+            total = document.querySelectorAll('#certTable tr').length;
+            document.getElementById('progress').style.width = '0%';
+            fetch('/update_all', { method: 'POST' });
+        }
+
+        function updateProgress(count) {
+            const progress = (count / total) * 100;
+            document.getElementById('progress').style.width = `${progress}%`;
+        }
+    </script>
 </body>
 </html>
