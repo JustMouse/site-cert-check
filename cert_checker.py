@@ -1,4 +1,4 @@
-# cert_checker.py (обновленная версия)
+# cert_checker.py (финальная версия)
 import sys
 import socket
 import ssl
@@ -13,8 +13,9 @@ def check_cert(domain):
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
 
-        with socket.create_connection((domain, 443), timeout=10) as sock:
-            sock.settimeout(10)
+        # Устанавливаем общий таймаут
+        with socket.create_connection((domain, 443), timeout=15) as sock:
+            sock.settimeout(15)
             with context.wrap_socket(sock, server_hostname=domain) as ssock:
                 cert_der = ssock.getpeercert(binary_form=True)
                 cert = load_der_x509_certificate(cert_der, default_backend())
@@ -26,11 +27,17 @@ if __name__ == "__main__":
     domain = sys.argv[1]
     output_file = sys.argv[2]
     
-    expiry_date = check_cert(domain)
-    with open(output_file, 'w', newline='') as f:
-        writer = csv.writer(f)
-        writer.writerow(['Domain', 'Expiry Date'])
-        writer.writerow([
-            domain,
-            expiry_date.strftime('%Y-%m-%d %H:%M:%S') if expiry_date else 'Error'
-        ])
+    try:
+        expiry_date = check_cert(domain)
+        with open(output_file, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Domain', 'Expiry Date'])
+            writer.writerow([
+                domain,
+                expiry_date.strftime('%Y-%m-%d %H:%M:%S') if expiry_date else 'Error'
+            ])
+    except Exception as e:
+        with open(output_file, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(['Domain', 'Expiry Date'])
+            writer.writerow([domain, 'Error'])
