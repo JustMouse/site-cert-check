@@ -1,0 +1,60 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Certificate Monitor</title>
+    <style>
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .search-box { margin: 20px 0; }
+        .status-valid { color: green; }
+        .status-error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>Certificate Monitoring</h1>
+    
+    <!-- Форма поиска -->
+    <div class="search-box">
+        <form>
+            <input type="text" name="query" placeholder="Search domain..." value="{{ query }}">
+            <input type="date" name="date_filter" value="{{ date_filter }}">
+            <button type="submit">Search</button>
+        </form>
+    </div>
+
+    <!-- Форма загрузки файла -->
+    <form method="post" enctype="multipart/form-data">
+        <input type="file" name="file">
+        <button type="submit">Upload DNS Dump</button>
+    </form>
+
+    <!-- Кнопка обновления всех -->
+    <form action="{{ url_for('update_all') }}" method="post" style="margin: 20px 0;">
+        <button type="submit">Update All Certificates</button>
+    </form>
+
+    <!-- Таблица результатов -->
+    <table>
+        <tr>
+            <th>Domain</th>
+            <th>Expiry Date</th>
+            <th>Last Checked</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+        {% for cert in certs %}
+        <tr>
+            <td>{{ cert.domain }}</td>
+            <td>{{ cert.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if cert.expiry_date else 'N/A' }}</td>
+            <td>{{ cert.last_checked.strftime('%Y-%m-%d %H:%M:%S') if cert.last_checked else 'Never' }}</td>
+            <td class="status-{{ cert.status.lower() }}">{{ cert.status }}</td>
+            <td>
+                <a href="{{ url_for('update_single', domain=cert.domain) }}">Update</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
