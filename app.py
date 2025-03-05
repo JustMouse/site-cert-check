@@ -78,21 +78,36 @@ threading.Thread(target=worker, daemon=True).start()
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    # Поиск и фильтрация
     query = request.args.get('query', '')
+    filter_type = request.args.get('filter', 'all')
+    
     certs = Certificate.query
+    
     if query:
         certs = certs.filter(Certificate.domain.contains(query))
+        
+    if filter_type == 'valid':
+        certs = certs.filter(Certificate.status == 'Valid')
+    elif filter_type == 'error':
+        certs = certs.filter(Certificate.status == 'Error')
+    elif filter_type == 'pending':
+        certs = certs.filter(Certificate.status == 'Pending')
+    elif filter_type == 'never':
+        certs = certs.filter(Certificate.last_checked == None)
+    
     certs = certs.order_by(Certificate.domain.asc()).all()
     
-    # Загрузка файла
-    if request.method == 'POST' and 'file' in request.files:
-        file = request.files['file']
-        if file.filename != '':
-            process_uploaded_file(file)
-            return redirect(url_for('index'))
-    
-    return render_template('index.html', certs=certs, query=query)
+    return render_template(
+        'index.html',
+        certs=certs,
+        query=query,
+        current_filter=filter_type
+    )
+
+@app.route('/update/<domain>')
+def update_single(domain):
+    task_queue.put(domain)
+    return '', 202
 
 def process_uploaded_file(file):
     try:
