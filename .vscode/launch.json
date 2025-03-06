@@ -5,7 +5,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Cert Checker (Args)",
+            "name": "Launch",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Launch file (Args)",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",

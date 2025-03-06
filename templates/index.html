@@ -2,21 +2,21 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Certificate Monitor</title>
+    <title>Domain Monitor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.5.4/socket.io.js"></script>
     <script>
-        // Обработчик клика по строке
-    // Функция для обновления конкретного домена
     function updateDomain(domain) {
         const row = document.getElementById(`row-${domain}`);
         if (row) {
             row.classList.add('updating');
-            row.querySelector('.status').textContent = 'Updating...';
+
             
             fetch(`/update/${encodeURIComponent(domain)}`)
                 .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Update failed');
+                    if (response.status === 202) {
+                         console.log("Запрос принят в обработку.");
+                    } else {
+                        console.error("Ошибка:", response.status);
                     }
                 })
                 .catch(error => {
@@ -120,7 +120,7 @@
     </style>
 </head>
 <body>
-    <h1>Certificate Monitoring</h1>
+    <h1>Domain Monitoring</h1>
     
     <!-- Форма фильтрации и сортировки -->
     <div class="filters">
@@ -172,7 +172,10 @@
             <tr>
                 <th>Domain</th>
                 <th>Expiry Date</th>
+                <th>Days for expiry</th>
                 <th>Last Checked</th>
+                <th>Pay Till</th>
+                <th>Issuer</th>
                 <th>Status</th>
                 <th>Action</th>
             </tr>
@@ -182,7 +185,10 @@
             <tr id="row-{{ cert.domain }}">
                 <td>{{ cert.domain }}</td>
                 <td>{{ cert.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if cert.expiry_date else 'N/A' }}</td>
+                <td>{{ (cert.expiry_date-now).days }}</td>
                 <td>{{ cert.last_checked.strftime('%Y-%m-%d %H:%M:%S') if cert.last_checked else 'Never' }}</td>
+                <td>{{ cert.paid_till_date.strftime('%Y-%m-%d %H:%M:%S') if cert.expiry_date else 'N/A' }}</td>
+                <td>{{ cert.issuer }}</td>
                 <td class="status-{{ cert.status.lower() }}">{{ cert.status }}</td>
                 <td>
                     <button onclick="updateDomain('{{ cert.domain }}')">Update</button>

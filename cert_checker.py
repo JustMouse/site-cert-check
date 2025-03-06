@@ -55,6 +55,6 @@ if __name__ == "__main__":
         print(get_issuer(cert),end=";")
     except Exception:
         if(check_http(domain)):
-            print("HTTP")
+            print("HTTP ONLY")
         else:
             print("Refused")
