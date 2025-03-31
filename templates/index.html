@@ -1,4 +1,4 @@
-<!-- templates/index.html -->
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -66,7 +66,7 @@
         }
     });
 
-    // Обработчик фильтров
+    
     document.querySelectorAll('.filters a').forEach(filter => {
         filter.addEventListener('click', function(e) {
             e.preventDefault();
@@ -76,6 +76,11 @@
             });
         });
     });
+        
+    function generatePDF() {
+        const params = new URLSearchParams(window.location.search);
+        window.open(`/generate_pdf?${params.toString()}`, '_blank');
+    }
     </script>
     <style>
         table { width: 100%; border-collapse: collapse; }
@@ -84,7 +89,6 @@
         .status-error { color: red; }
         .status-updating { background: #fff3cd; }
         .progress { height: 5px; background: #4CAF50; transition: width 0.3s; }
-        /* Добавленные стили */
         .controls { margin: 20px 0; display: flex; gap: 15px; align-items: center; }
         .filters a {
             padding: 5px 10px;
@@ -97,11 +101,9 @@
         tr:hover { background: #f5f5f5; }
         tr.updating { background: #fff3cd; }
         .status-updating { color: orange; }
-        /* Стили для кнопки и строки */
         .updating { background: #fff3cd; }
         .status-updating { color: orange; }
         button { padding: 5px 10px; cursor: pointer; }
-        /* Стили для кнопок сортировки */
         .sort-buttons {
             margin: 20px 0;
             display: flex;
@@ -122,10 +124,10 @@
 <body>
     <h1>Domain Monitoring</h1>
     
-    <!-- Форма фильтрации и сортировки -->
+    
     <div class="filters">
         <form>
-            <!-- Фильтр по типу -->
+            
             <select name="filter">
                 <option value="all" {% if current_filter == 'all' %}selected{% endif %}>All</option>
                 <option value="valid" {% if current_filter == 'valid' %}selected{% endif %}>Valid</option>
@@ -134,25 +136,29 @@
                 <option value="never" {% if current_filter == 'never' %}selected{% endif %}>Never Checked</option>
             </select>
             
-            <!-- Поиск по домену -->
+            
             <input type="text" name="query" placeholder="Search domains..." value="{{ query }}">
             
             <button type="submit">Apply Filters</button>
         </form>
     </div>
 
-    <!-- Загрузка файла -->
+    <div class="generate">
+        <button onclick="generatePDF()" class="export-button">Export to PDF</button>
+    </div>
+
+
+    
     <form method="post" enctype="multipart/form-data" style="margin: 20px 0;">
         <input type="file" name="file">
         <button type="submit">Upload DNS Dump</button>
     </form>
     
-    <!-- Кнопка обновления -->
+    
     <button onclick="startUpdate()">Update All Certificates</button>
     <div class="progress" id="progress"></div>
-
     
-    <!-- Кнопки сортировки -->
+    
     <div class="sort-buttons">
         <a href="?sort_by=domain&sort_order={% if sort_by == 'domain' and sort_order == 'asc' %}desc{% else %}asc{% endif %}&filter={{ current_filter }}&query={{ query }}">
             Sort by Domain {% if sort_by == 'domain' %}({{ sort_order }}){% endif %}
@@ -166,7 +172,7 @@
     </div>
 
 
-    <!-- Таблица -->
+    
     <table>
         <thead>
             <tr>
@@ -177,18 +183,30 @@
                 <th>Pay Till</th>
                 <th>Issuer</th>
                 <th>Status</th>
-                <th>Action</th>
+                <th>Acton</th>
             </tr>
         </thead>
         <tbody id="certTable">
             {% for cert in certs %}
             <tr id="row-{{ cert.domain }}">
                 <td>{{ cert.domain }}</td>
-                <td>{{ cert.expiry_date.strftime('%Y-%m-%d %H:%M:%S') if cert.expiry_date else 'N/A' }}</td>
-                <td>{{ (cert.expiry_date-now).days }}</td>
-                <td>{{ cert.last_checked.strftime('%Y-%m-%d %H:%M:%S') if cert.last_checked else 'Never' }}</td>
-                <td>{{ cert.paid_till_date.strftime('%Y-%m-%d %H:%M:%S') if cert.expiry_date else 'N/A' }}</td>
-                <td>{{ cert.issuer }}</td>
+                <td>
+                    {% if cert.last_certificate and cert.last_certificate.expiry_date %}
+                        {{ cert.last_certificate.expiry_date.strftime('%Y-%m-%d') }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>
+                    {% if cert.last_certificate and cert.last_certificate.expiry_date %}
+                        {{ (cert.last_certificate.expiry_date - now).days }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+                <td>{{ cert.last_certificate.last_checked.strftime('%Y-%m-%d %H:%M:%S') if cert.last_certificate else 'Never' }}</td>
+                <td>{{ cert.paid_till_date.strftime('%Y-%m-%d %H:%M:%S') if cert.paid_till_date else 'N/A' }}</td>
+                <td>{{ cert.last_certificate.issuer if cert.last_certificate else 'N/A' }}</td>
                 <td class="status-{{ cert.status.lower() }}">{{ cert.status }}</td>
                 <td>
                     <button onclick="updateDomain('{{ cert.domain }}')">Update</button>

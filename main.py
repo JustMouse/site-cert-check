@@ -12,9 +12,7 @@ def get_cert_expiry(domain):
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
 
-        # Устанавливаем таймаут для соединения
         with socket.create_connection((domain, 443), timeout=10) as sock:
-            # Устанавливаем таймаут для SSL. С этой самая ПопаБоль - Zaka
             sock.settimeout(10)
             with context.wrap_socket(sock, server_hostname=domain) as ssock:
                 cert_der = ssock.getpeercert(binary_form=True)
@@ -30,7 +28,7 @@ def get_cert_expiry(domain):
 def process_dns_dump(file_path, output_csv):
     with open(file_path, 'r') as f, open(output_csv, 'w', newline='') as csvfile:
         csv_writer = csv.writer(csvfile)
-        csv_writer.writerow(['Domain', 'Expiry Date'])  # Заголовки CSV
+        csv_writer.writerow(['Domain', 'Expiry Date'])
 
         for line in f:
             line = line.strip()
